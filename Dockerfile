@@ -9,7 +9,7 @@ ARG FIREFOX_HOME=/home/$USER
 ARG FIREFOX_VERSION=74.0
 
 RUN apt-get update && \
-    apt-get -y --no-install-recommends install bzip2 wget $(apt-cache depends firefox-esr | grep Depends | sed "s/.*ends:\ //" | tr '\n' ' ') && \
+    apt-get -y --no-install-recommends install bzip2 wget libpulse0 $(apt-cache depends firefox-esr | grep Depends | sed "s/.*ends:\ //" | tr '\n' ' ') && \
     cd /opt && \
     wget --no-check-certificate "https://ftp.mozilla.org/pub/firefox/releases/$FIREFOX_VERSION/linux-x86_64/en-US/firefox-$FIREFOX_VERSION.tar.bz2" -O firefox.tar.bz2 && \
     tar jxvf firefox.tar.bz2 && \
@@ -22,4 +22,5 @@ USER $USER
 RUN mkdir $FIREFOX_HOME/hostdir
 VOLUME $FIREFOX_HOME/hostdir
 ENV HOME $FIREFOX_HOME
+ENV PULSE_SERVER=unix:/run/user/1000/pulse/native
 CMD /opt/firefox/firefox
