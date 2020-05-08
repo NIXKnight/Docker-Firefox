@@ -6,11 +6,11 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Build the Docker Image
-      run: docker build . --file Dockerfile --tag "nixknight/firefox:75.0"
+      run: docker build . --file Dockerfile --tag "nixknight/firefox:76.0"
     - name: Push to Docker Hub Repository
       env:
         DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
         DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
       run: |
         docker login -u ${DOCKER_HUB_USERNAME} -p ${DOCKER_HUB_TOKEN}
-        docker push "nixknight/firefox:75.0"
+        docker push "nixknight/firefox:76.0"
