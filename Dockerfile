@@ -6,7 +6,7 @@ ARG GROUP=firefox
 ARG UID=1000
 ARG GID=1000
 ARG FIREFOX_HOME=/home/$USER
-ARG FIREFOX_VERSION=76.0
+ARG FIREFOX_VERSION=76.0.1
 
 RUN apt-get update && \
     apt-get -y --no-install-recommends install bzip2 wget libpulse0 $(apt-cache depends firefox-esr | grep Depends | sed "s/.*ends:\ //" | tr '\n' ' ') && \
