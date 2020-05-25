@@ -25,7 +25,8 @@ jobs:
           aws s3api head-object --bucket ${AWS_S3_BUCKET} --key Docker-Firefox/firefox_versions.json || OLD_JSON_NOT_EXIST=true
           if [ $OLD_JSON_NOT_EXIST ]; then
             echo "Docker-Firefox/firefox_versions.json doesn't exist"
-            echo "::set-env name=BUILD::true"
+            echo "::set-env name=BUILD_LATEST::true"
+            echo "::set-env name=BUILD_ESR::true"
             echo "::set-env name=NEW_FIREFOX_VERSION::${NEW_FIREFOX_VERSION}"
             echo "::set-env name=NEW_FIREFOX_ESR_VERSION::${NEW_FIREFOX_ESR_VERSION}"
           else
@@ -33,10 +34,15 @@ jobs:
             OLD_FIREFOX_VERSION=$(cat ${GITHUB_WORKSPACE}/old_firefox_versions.json | jq --raw-output '.LATEST_FIREFOX_VERSION')
             OLD_FIREFOX_ESR_VERSION=$(cat ${GITHUB_WORKSPACE}/old_firefox_versions.json | jq --raw-output '.FIREFOX_ESR')
             if [ $OLD_FIREFOX_VERSION == $NEW_FIREFOX_VERSION ] ; then
-              echo "::set-env name=BUILD::false"
+              echo "::set-env name=BUILD_LATEST::false"
             else
-              echo "::set-env name=BUILD::true"
+              echo "::set-env name=BUILD_LATEST::true"
               echo "::set-env name=NEW_FIREFOX_VERSION::$NEW_FIREFOX_VERSION"
+            fi
+            if [ $OLD_FIREFOX_ESR_VERSION == $OLD_FIREFOX_ESR_VERSION ] ; then
+              echo "::set-env name=BUILD_ESR::false"
+            else
+              echo "::set-env name=BUILD_ESR::true"
               echo "::set-env name=NEW_FIREFOX_ESR_VERSION::$NEW_FIREFOX_ESR_VERSION"
             fi
           fi
@@ -46,16 +52,16 @@ jobs:
         working-directory: ${GITHUB_WORKSPACE}/Docker-Firefox
         run: |
           docker build . --file Dockerfile --build-arg FIREFOX_VERSION=$NEW_FIREFOX_VERSION --tag "nixknight/firefox:$NEW_FIREFOX_VERSION" --tag "nixknight/firefox:latest"
-        if: env.BUILD
+        if: env.BUILD_LATEST
 
       - name: Build Firefox ESR Docker Image
         shell: bash
         working-directory: ${GITHUB_WORKSPACE}/Docker-Firefox
         run: |
           docker build . --file Dockerfile --build-arg FIREFOX_VERSION=$NEW_FIREFOX_ESR_VERSION --tag "nixknight/firefox:$NEW_FIREFOX_ESR_VERSION" --tag "nixknight/firefox:esr-latest"
-        if: env.BUILD
+        if: env.BUILD_ESR
 
-      - name: Push to Docker Hub Repository
+      - name: Push Firefox Latest Image to Docker Hub Registry
         shell: bash
         env:
           DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
@@ -63,12 +69,23 @@ jobs:
         run: |
           docker login -u ${DOCKER_HUB_USERNAME} -p ${DOCKER_HUB_TOKEN}
           docker push "${DOCKER_HUB_USERNAME}/firefox:$NEW_FIREFOX_VERSION"
+          docker push "${DOCKER_HUB_USERNAME}/firefox:latest"
+          docker logout
+        if: env.BUILD_LATEST
+
+      - name: Push Firefox ESR Image to Docker Hub Registry
+        shell: bash
+        env:
+          DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
+          DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
+        run: |
+          docker login -u ${DOCKER_HUB_USERNAME} -p ${DOCKER_HUB_TOKEN}
           docker push "${DOCKER_HUB_USERNAME}/firefox:$NEW_FIREFOX_ESR_VERSION"
           docker push "${DOCKER_HUB_USERNAME}/firefox:esr-latest"
-          docker push "${DOCKER_HUB_USERNAME}/firefox:latest"
-        if: env.BUILD
+          docker logout
+        if: env.BUILD_ESR
 
-      - name: Copy ${GITHUB_WORKSPACE}/new_firefox_version.json to S3
+      - name: Copy Firefox Versions JSON to S3
         shell: bash
         env:
           AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
