@@ -13,6 +13,7 @@ jobs:
           path: "${GITHUB_WORKSPACE}/Docker-Firefox"
 
       - name: Check New Firefox Version Availability
+        id: vars
         shell: bash
         env:
           AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
@@ -35,13 +36,13 @@ jobs:
             OLD_FIREFOX_VERSION=$(cat ${GITHUB_WORKSPACE}/old_firefox_versions.json | jq --raw-output '.LATEST_FIREFOX_VERSION')
             OLD_FIREFOX_ESR_VERSION=$(cat ${GITHUB_WORKSPACE}/old_firefox_versions.json | jq --raw-output '.FIREFOX_ESR')
             if [ $OLD_FIREFOX_VERSION == $NEW_FIREFOX_VERSION ] ; then
-              echo ::set-output name=BUILD_LATEST::false
+              echo "New Firefox release not available"
             else
               echo ::set-output name=BUILD_LATEST::true
               echo ::set-output name=NEW_FIREFOX_VERSION::$NEW_FIREFOX_VERSION
             fi
-            if [ $OLD_FIREFOX_ESR_VERSION == $OLD_FIREFOX_ESR_VERSION ] ; then
-              echo ::set-output name=BUILD_ESR::false
+            if [ $OLD_FIREFOX_ESR_VERSION == $NEW_FIREFOX_ESR_VERSION ] ; then
+              echo "New Firefox ESR release not available"
             else
               echo ::set-output name=BUILD_ESR::true
               echo ::set-output name=NEW_FIREFOX_ESR_VERSION::$NEW_FIREFOX_ESR_VERSION
@@ -50,56 +51,61 @@ jobs:
 
       - name: Build Firefox Latest Docker Image
         shell: bash
+        env:
+          USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
         working-directory: ${GITHUB_WORKSPACE}/Docker-Firefox
         run: |
           docker build . --file Dockerfile --build-arg FIREFOX_VERSION=${{ steps.vars.outputs.NEW_FIREFOX_VERSION }} \
-            --tag docker.pkg.github.com/${DOCKER_HUB_USERNAME}/docker-firefox/docker-firefox:${{ steps.vars.outputs.NEW_FIREFOX_VERSION }} \
-            --tag docker.pkg.github.com/${DOCKER_HUB_USERNAME}/docker-firefox/docker-firefox:latest \
-            --tag "${DOCKER_HUB_USERNAME}/firefox:${{ steps.vars.outputs.NEW_FIREFOX_VERSION }}" \
-            --tag "${DOCKER_HUB_USERNAME}/firefox:latest"
+            --tag docker.pkg.github.com/${USERNAME}/docker-firefox/docker-firefox:${{ steps.vars.outputs.NEW_FIREFOX_VERSION }} \
+            --tag docker.pkg.github.com/${USERNAME}/docker-firefox/docker-firefox:latest \
+            --tag "${USERNAME}/firefox:${{ steps.vars.outputs.NEW_FIREFOX_VERSION }}" \
+            --tag "${USERNAME}/firefox:latest"
         if: ${{ steps.vars.outputs.BUILD_LATEST }}
 
       - name: Build Firefox ESR Docker Image
         shell: bash
+        env:
+          USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
         working-directory: ${GITHUB_WORKSPACE}/Docker-Firefox
         run: |
           docker build . --file Dockerfile --build-arg FIREFOX_VERSION=${{ steps.vars.outputs.NEW_FIREFOX_ESR_VERSION }} \
-            --tag docker.pkg.github.com/${DOCKER_HUB_USERNAME}/docker-firefox/docker-firefox:${{ steps.vars.outputs.NEW_FIREFOX_ESR_VERSION }} \
-            --tag docker.pkg.github.com/${DOCKER_HUB_USERNAME}/docker-firefox/docker-firefox:esr-latest \
-            --tag "${DOCKER_HUB_USERNAME}/firefox:${{ steps.vars.outputs.NEW_FIREFOX_ESR_VERSION }}" \
-            --tag "${DOCKER_HUB_USERNAME}/firefox:esr-latest"
-
+            --tag docker.pkg.github.com/${USERNAME}/docker-firefox/docker-firefox:${{ steps.vars.outputs.NEW_FIREFOX_ESR_VERSION }} \
+            --tag docker.pkg.github.com/${USERNAME}/docker-firefox/docker-firefox:esr-latest \
+            --tag "${USERNAME}/firefox:${{ steps.vars.outputs.NEW_FIREFOX_ESR_VERSION }}" \
+            --tag "${USERNAME}/firefox:esr-latest"
         if: ${{ steps.vars.outputs.BUILD_ESR }}
 
-      - name: Push Firefox Latest Image to Docker Hub Registry
+      - name: Push Firefox Latest Image to Docker Hub and GitHub Registries
         shell: bash
         env:
-          DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
+          USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
           DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
+          DOCKER_GITHUB_TOKEN: ${{ secrets.DOCKER_GITHUB_TOKEN }}
         run: |
-          docker login -u ${DOCKER_HUB_USERNAME} -p ${DOCKER_HUB_TOKEN}
-          docker push "${DOCKER_HUB_USERNAME}/firefox:${{ steps.vars.outputs.NEW_FIREFOX_VERSION }}"
-          docker push "${DOCKER_HUB_USERNAME}/firefox:latest"
+          docker login -u ${USERNAME} -p ${DOCKER_HUB_TOKEN}
+          docker push "${USERNAME}/firefox:${{ steps.vars.outputs.NEW_FIREFOX_VERSION }}"
+          docker push "${USERNAME}/firefox:latest"
           docker logout
-          docker login docker.pkg.github.com -u ${DOCKER_HUB_USERNAME} -p ${DOCKER_GITHUB_TOKEN}
-          docker push "${DOCKER_HUB_USERNAME}/firefox:${{ steps.vars.outputs.NEW_FIREFOX_VERSION }}"
-          docker push "${DOCKER_HUB_USERNAME}/firefox:latest"
+          docker login docker.pkg.github.com -u ${USERNAME} -p ${DOCKER_GITHUB_TOKEN}
+          docker push "docker.pkg.github.com/${USERNAME}/docker-firefox/docker-firefox:${{ steps.vars.outputs.NEW_FIREFOX_VERSION }}"
+          docker push "docker.pkg.github.com/${USERNAME}/docker-firefox/docker-firefox:latest"
           docker logout
         if: ${{ steps.vars.outputs.BUILD_LATEST }}
 
-      - name: Push Firefox ESR Image to Docker Hub Registry
+      - name: Push Firefox ESR Image to Docker Hub and GitHub Registries
         shell: bash
         env:
-          DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
+          USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
           DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
+          DOCKER_GITHUB_TOKEN: ${{ secrets.DOCKER_GITHUB_TOKEN }}
         run: |
-          docker login -u ${DOCKER_HUB_USERNAME} -p ${DOCKER_HUB_TOKEN}
-          docker push "${DOCKER_HUB_USERNAME}/firefox:${{ steps.vars.outputs.NEW_FIREFOX_ESR_VERSION }}"
-          docker push "${DOCKER_HUB_USERNAME}/firefox:esr-latest"
+          docker login -u ${USERNAME} -p ${DOCKER_HUB_TOKEN}
+          docker push "${USERNAME}/firefox:${{ steps.vars.outputs.NEW_FIREFOX_ESR_VERSION }}"
+          docker push "${USERNAME}/firefox:esr-latest"
           docker logout
-          docker login docker.pkg.github.com -u ${DOCKER_HUB_USERNAME} -p ${DOCKER_GITHUB_TOKEN}
-          docker push "${DOCKER_HUB_USERNAME}/firefox:${{ steps.vars.outputs.NEW_FIREFOX_ESR_VERSION }}"
-          docker push "${DOCKER_HUB_USERNAME}/firefox:esr-latest"
+          docker login docker.pkg.github.com -u ${USERNAME} -p ${DOCKER_GITHUB_TOKEN}
+          docker push "docker.pkg.github.com/${USERNAME}/docker-firefox/docker-firefox:${{ steps.vars.outputs.NEW_FIREFOX_ESR_VERSION }}"
+          docker push "docker.pkg.github.com/${USERNAME}/docker-firefox/docker-firefox:esr-latest"
           docker logout
         if: ${{ steps.vars.outputs.BUILD_ESR }}
 
