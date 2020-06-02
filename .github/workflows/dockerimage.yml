@@ -109,6 +109,24 @@ jobs:
           docker logout
         if: ${{ steps.vars.outputs.BUILD_ESR }}
 
+      - name: Send Telegram Notification for Firefox Latest
+        shell: bash
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          curl -s -X POST https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage -d chat_id=${TELEGRAM_CHAT_ID} -d text="Docker image for Firefox Latest updated to ${{ steps.vars.outputs.NEW_FIREFOX_VERSION }}"
+        if: ${{ steps.vars.outputs.BUILD_LATEST }}
+
+      - name: Send Telegram Notification for Firefox ESR
+        shell: bash
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          curl -s -X POST https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage -d chat_id=${TELEGRAM_CHAT_ID} -d text="Docker image for Firefox ESR updated to ${{ steps.vars.outputs.NEW_FIREFOX_ESR_VERSION }}"
+        if: ${{ steps.vars.outputs.BUILD_ESR }}
+
       - name: Copy Firefox Versions JSON to S3
         shell: bash
         env:
@@ -116,6 +134,9 @@ jobs:
           AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          DOCKER_GITHUB_TOKEN: ${{ secrets.DOCKER_GITHUB_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           aws s3api head-object --bucket ${AWS_S3_BUCKET} --key Docker-Firefox/firefox_versions.json || OLD_JSON_NOT_EXIST=true
           if [ $OLD_JSON_NOT_EXIST ]; then
